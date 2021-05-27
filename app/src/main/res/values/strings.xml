@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">MoodMusicPlayer</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="feel_your_mood">Feel your mood..</string>
+    <string name="playing_your_mood">Playing your mood</string>
+</resources>
