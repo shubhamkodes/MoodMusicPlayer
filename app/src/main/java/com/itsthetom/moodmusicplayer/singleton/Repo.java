@@ -35,12 +35,13 @@ public class Repo {
         musicList=new ArrayList<>();
         executor= Executors.newFixedThreadPool(NO_THREADS);
         checkMetaData=new MutableLiveData<>();
+        checkListAvailable=new MutableLiveData<>();
         artistList=new HashMap<>();
         albumList=new HashMap<>();
         artistTitleList=new ArrayList<>();
         albumTitleList=new ArrayList<>();
         loadAllMusic();
-        checkListAvailable=new MutableLiveData<>();
+
     }
 
     public static synchronized Repo getInstance(Context context){

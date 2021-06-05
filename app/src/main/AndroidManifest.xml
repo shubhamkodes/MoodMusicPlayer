@@ -12,36 +12,36 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MoodMusicPlayer">
-        <activity android:name=".activities.ArtistAlbumActivity" />
-        <receiver
-            android:name=".NoticationActionReceiver"
-            android:enabled="true"
-            >
-            <intent-filter>
-                <action android:name="NEXT_MUSIC"/>
-                <action android:name="PREV_MUSIC"/>
-                <action android:name="PLAY_PAUSE"/>
-            </intent-filter>
-        </receiver>
-        <activity android:name=".activities.MusicPlayerActivity" />
-        <activity android:name=".activities.MainActivity">
+        <activity android:name=".activities.SplashActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".activities.ArtistAlbumActivity" />
+
+        <activity android:name=".activities.MusicPlayerActivity" />
+
+        <activity android:name=".activities.MainActivity">
+
+        </activity>
         <meta-data
             android:name="preloaded_fonts"
             android:resource="@array/preloaded_fonts" />
 
-
-
-
-
+        <receiver
+            android:name=".NoticationActionReceiver"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="NEXT_MUSIC" />
+                <action android:name="PREV_MUSIC" />
+                <action android:name="PLAY_PAUSE" />
+            </intent-filter>
+        </receiver>
     </application>
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
 </manifest>
