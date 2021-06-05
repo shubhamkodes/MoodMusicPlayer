@@ -2,16 +2,26 @@ package com.itsthetom.moodmusicplayer.activities;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.PendingIntent;
+import android.content.ComponentName;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.SeekBar;
 
 import com.bumptech.glide.Glide;
+
+import com.itsthetom.moodmusicplayer.NoticationActionReceiver;
 import com.itsthetom.moodmusicplayer.R;
 import com.itsthetom.moodmusicplayer.databinding.ActivityMusicPlayerBinding;
 import com.itsthetom.moodmusicplayer.fragments.SearchFragment;
+import com.itsthetom.moodmusicplayer.listeners.MusicUpdateListener;
 import com.itsthetom.moodmusicplayer.model.Music;
 import com.itsthetom.moodmusicplayer.singleton.PlayerHandler;
 
@@ -20,24 +30,28 @@ import java.util.Random;
 
 import static com.itsthetom.moodmusicplayer.singleton.Repo.musicList;
 
-public class MusicPlayerActivity extends AppCompatActivity implements MediaPlayer.OnCompletionListener {
+public class MusicPlayerActivity extends AppCompatActivity implements MediaPlayer.OnCompletionListener , MusicUpdateListener {
     public static final String EXTRA_MUSIC_POS="music_pos",FROM_TYPE="fromIntent",
             FROM_HOME="homeMusicList",FROM_SEARCH="searchMusicList",
             FROM_ARTIST="libraryArtistList", FROM_ALBUM="libraryAlbumList",
             FROM_RECENT="recentMusicList",FROM_LIBRARY_ARTIST = "fromLibraryArtist",
-            FROM_LIBRARY_ALBUM="fromLibraryAlbum";
+            FROM_LIBRARY_ALBUM="fromLibraryAlbum",FROM_NOTIFICATION="fromNotification";
+
+
     public static ArrayList<Music> musicPlayerList;
     ActivityMusicPlayerBinding binding;
     Music music;
     Handler handler;
     String musicListType;
     SharedPreferences sharedPreferences;
+
     private boolean isRepeatOn,isShuffleOn;
     public static int musicCurrentPos=-1;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         binding=ActivityMusicPlayerBinding.inflate(getLayoutInflater());
+        setFullScreen();
         setContentView(binding.getRoot());
 
         music=null;
@@ -47,9 +61,18 @@ public class MusicPlayerActivity extends AppCompatActivity implements MediaPlaye
         sharedPreferences=getSharedPreferences("preferences",MODE_PRIVATE);
         isRepeatOn=sharedPreferences.getBoolean("isRepeatOn",false);
         isShuffleOn=sharedPreferences.getBoolean("isShuffleOn",false);
+        PlayerHandler.getInstance().toggleRepeat(isRepeatOn);
+        PlayerHandler.getInstance().toggleShuffle(isShuffleOn);
 
         setMusic();
     }
+
+    private void setFullScreen() {
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,WindowManager.LayoutParams.FLAG_FULLSCREEN);
+    }
+
+
 
     private void setMusic(){
         switch (musicListType){
@@ -61,17 +84,29 @@ public class MusicPlayerActivity extends AppCompatActivity implements MediaPlaye
                 break;
             case FROM_RECENT:
                 musicPlayerList=SearchFragment.recentsList;
+                break;
             case FROM_ALBUM:
             case FROM_ARTIST:
                 musicPlayerList=ArtistAlbumActivity.artistAlbumList;
             break;
+            case FROM_NOTIFICATION:
+                musicPlayerList=PlayerHandler.getInstance().getCurrentList();
+                musicCurrentPos=PlayerHandler.getInstance().getMusicCurrentPos();
+            break;
         }
-        if(musicCurrentPos!=-1  && musicCurrentPos<musicPlayerList.size()){
-            music=musicPlayerList.get(musicCurrentPos);
-            playMusic();
-            initView();
-            binding.btnPlayPause.setImageResource(R.drawable.ic_pause);
-        }
+
+            if(musicCurrentPos!=-1  && musicCurrentPos<musicPlayerList.size()){
+                music=musicPlayerList.get(musicCurrentPos);
+                PlayerHandler.getInstance().setUpMusicListAndPlay(musicPlayerList,musicCurrentPos,this,this);
+                if (!musicListType.equals(FROM_NOTIFICATION) ) {
+                    PlayerHandler.getInstance().startMusic(music, this);
+                    PlayerHandler.getInstance().getMediaPlayer().setOnCompletionListener(this);
+                }
+                binding.btnPlayPause.setImageResource(R.drawable.ic_pause);
+
+            }
+        initView();
+
     }
 
     private void initView(){
@@ -101,6 +136,7 @@ public class MusicPlayerActivity extends AppCompatActivity implements MediaPlaye
                 sharedPreferences.edit().putBoolean("isShuffleOn",true).apply();
                 binding.btnShuffle.setImageResource(R.drawable.ic_shuffle_on);
             }
+            PlayerHandler.getInstance().toggleShuffle(isShuffleOn);
         });
 
         if(isRepeatOn)
@@ -117,47 +153,44 @@ public class MusicPlayerActivity extends AppCompatActivity implements MediaPlaye
                 sharedPreferences.edit().putBoolean("isRepeatOn",true).apply();
                 binding.btnRepeat.setImageResource(R.drawable.ic_repeat_on);
             }
+            PlayerHandler.getInstance().toggleRepeat(isRepeatOn);
         });
 
-        updateView();
+
     }
 
     private void playNext(){
-        if(isShuffleOn && !isRepeatOn){
-            musicCurrentPos=getRandom(musicPlayerList.size());
-        }else if(!isRepeatOn){
-            musicCurrentPos= (musicCurrentPos+1)%musicPlayerList.size();
-        }
-
-        if(musicCurrentPos<0 || musicCurrentPos>=musicPlayerList.size())
-            musicCurrentPos=0;
+        musicCurrentPos=PlayerHandler.getInstance().playNextPrevMusic(PlayerHandler.NEXT,this);
+        music=musicPlayerList.get(musicCurrentPos);
+        PlayerHandler.getInstance().getMediaPlayer().setOnCompletionListener(this);
         binding.btnPlayPause.setImageResource(R.drawable.ic_pause);
-        playMusic();
+
     }
 
     private void playPrev(){
-        musicCurrentPos= (musicCurrentPos-1)%musicPlayerList.size();
-        if(musicCurrentPos<0)
-            musicCurrentPos=musicPlayerList.size()-1;
-        binding.btnPlayPause.setImageResource(R.drawable.ic_pause);
-        playMusic();
-    }
 
-    private void playMusic(){
-
+        musicCurrentPos=PlayerHandler.getInstance().playNextPrevMusic(PlayerHandler.PREV,this);
         music=musicPlayerList.get(musicCurrentPos);
-        PlayerHandler.getInstance().playNext(music,this );
         PlayerHandler.getInstance().getMediaPlayer().setOnCompletionListener(this);
-        updateView();
+        binding.btnPlayPause.setImageResource(R.drawable.ic_pause);
+
     }
 
-    private void updateView() {
+
+
+
+
+    public void updateView(Music music,int pos) {
+        this.music=music;
+        musicCurrentPos=pos;
+        binding.btnPlayPause.setImageResource(R.drawable.ic_pause);
+
         binding.btnPlayPause.setOnClickListener((view)->{
             if(PlayerHandler.getInstance().isPlaying()) {
-                PlayerHandler.getInstance().playAndPause();
+                PlayerHandler.getInstance().playAndPause(this);
                 binding.btnPlayPause.setImageResource(R.drawable.ic_play);
             }else{
-                PlayerHandler.getInstance().playAndPause();
+                PlayerHandler.getInstance().playAndPause(this);
                 binding.btnPlayPause.setImageResource(R.drawable.ic_pause);
             }
         });
@@ -217,6 +250,13 @@ public class MusicPlayerActivity extends AppCompatActivity implements MediaPlaye
 
     }
 
+    public void iconStop(){
+        binding.btnPlayPause.setImageResource(R.drawable.ic_play);
+    }
+    public void iconPlay(){
+        binding.btnPlayPause.setImageResource(R.drawable.ic_pause);
+    }
+
     public String formattedTime(int currentPos){
         String totatOut="",totalNew="",seconds=String.valueOf(currentPos%60),minutes=String.valueOf(currentPos/60);
         totatOut=minutes+":"+seconds;
@@ -238,4 +278,7 @@ public class MusicPlayerActivity extends AppCompatActivity implements MediaPlaye
         binding.btnPlayPause.setImageResource(R.drawable.ic_play);
         playNext();
     }
+
+
+
 }
